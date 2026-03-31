@@ -2,14 +2,66 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>Liked Songs</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="search.html">Search Songs</a>
+      <a href="playlist.html">My Playlists</a>
+      <a href="likes.html" class="active">Liked Songs</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>❤️ Liked Songs</h1>
+    <div id="likedList"><p>Loading...</p></div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    const { data: likes } = await supabase
+      .from('likes')
+      .select('*, songs(*, users(full_name))')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (!likes || likes.length === 0) {
+      document.getElementById('likedList').innerHTML = '<p>No liked songs yet. Go to <a href="search.html">Search</a> to like some!</p>'
+    } else {
+      document.getElementById('likedList').innerHTML = likes.map(like => `
+        <div class="song-card">
+          <div>
+            <strong>${like.songs?.title || 'Unknown'}</strong>
+            <br>
+            <span>${like.songs?.users?.full_name || 'Unknown Artist'} • ${like.songs?.genre || 'No genre'}</span>
+          </div>
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            ${like.songs?.file_url ? `<audio controls src="${like.songs.file_url}" style="height:32px"></audio>` : ''}
+            <button class="delete-btn" onclick="unlike('${like.id}')">Unlike</button>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    window.unlike = async function(likeId) {
+      await supabase.from('likes').delete().eq('id', likeId)
+      window.location.reload()
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */

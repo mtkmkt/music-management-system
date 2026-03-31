@@ -5,7 +5,7 @@
   <title>Login — Music System</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="auth-body">
   <div class="auth-box">
     <h1>Login</h1>
 
@@ -19,9 +19,17 @@
 
   <script type="module">
     import { supabase } from './js/supabase.js'
+
     async function login() {
       const email = document.getElementById('email').value
       const password = document.getElementById('password').value
+
+      if (!email || !password) {
+        document.getElementById('msg').textContent = 'Please fill in all fields'
+        return
+      }
+
+      document.getElementById('msg').textContent = 'Logging in...'
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -32,6 +40,7 @@
         window.location.href = role === 'artist' ? 'artist/dashboard.html' : 'listener/dashboard.html'
       }
     }
+
     document.getElementById('loginBtn').addEventListener('click', login)
   </script>
 </body>

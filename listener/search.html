@@ -2,14 +2,165 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>Search Songs</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="search.html" class="active">Search Songs</a>
+      <a href="playlist.html">My Playlists</a>
+      <a href="likes.html">Liked Songs</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>Search Songs</h1>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by title or genre..." />
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <div id="results"><p>Type something to search, or leave empty to see all songs.</p></div>
+  </div>
+
+  <!-- Add to playlist modal -->
+  <div id="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100;justify-content:center;align-items:center">
+    <div style="background:white;padding:2rem;border-radius:12px;width:350px;display:flex;flex-direction:column;gap:1rem">
+      <h2>Add to Playlist</h2>
+      <select id="playlistSelect"></select>
+      <button id="confirmAdd">Add Song</button>
+      <button id="closeModal" style="background:#eee;color:#333">Cancel</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    let selectedSongId = null
+    let likedSongIds = []
+
+    // Load liked songs
+    const { data: likes } = await supabase
+      .from('likes')
+      .select('song_id')
+      .eq('user_id', user.id)
+    likedSongIds = likes?.map(l => l.song_id) || []
+
+    async function searchSongs() {
+      const query = document.getElementById('searchInput').value.trim()
+
+      let request = supabase
+        .from('songs')
+        .select('*, users(full_name)')
+        .order('created_at', { ascending: false })
+
+      if (query) {
+        request = request.or(`title.ilike.%${query}%,genre.ilike.%${query}%`)
+      }
+
+      const { data: songs } = await request
+
+      if (!songs || songs.length === 0) {
+        document.getElementById('results').innerHTML = '<p>No songs found.</p>'
+        return
+      }
+
+      document.getElementById('results').innerHTML = songs.map(song => `
+        <div class="song-card">
+          <div>
+            <strong>${song.title}</strong>
+            <br>
+            <span>${song.users?.full_name || 'Unknown'} • ${song.genre || 'No genre'} • ${song.duration_sec ? Math.floor(song.duration_sec/60) + ':' + String(song.duration_sec%60).padStart(2,'0') : '--:--'}</span>
+          </div>
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            ${song.file_url ? `<audio controls src="${song.file_url}" style="height:32px"></audio>` : ''}
+            <button class="like-btn ${likedSongIds.includes(song.id) ? 'liked' : ''}" data-id="${song.id}">
+              ${likedSongIds.includes(song.id) ? '❤️' : '🤍'}
+            </button>
+            <button class="add-btn" data-id="${song.id}">+ Playlist</button>
+          </div>
+        </div>
+      `).join('')
+
+      // Like buttons
+      document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const songId = btn.dataset.id
+          if (likedSongIds.includes(songId)) {
+            await supabase.from('likes').delete()
+              .eq('user_id', user.id).eq('song_id', songId)
+            likedSongIds = likedSongIds.filter(id => id !== songId)
+            btn.textContent = '🤍'
+          } else {
+            await supabase.from('likes').insert({ user_id: user.id, song_id: songId })
+            likedSongIds.push(songId)
+            btn.textContent = '❤️'
+          }
+        })
+      })
+
+      // Add to playlist buttons
+      document.querySelectorAll('.add-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          selectedSongId = btn.dataset.id
+          await loadPlaylists()
+          document.getElementById('modal').style.display = 'flex'
+        })
+      })
+    }
+
+    async function loadPlaylists() {
+      const { data: playlists } = await supabase
+        .from('playlists')
+        .select('*')
+        .eq('listener_id', user.id)
+
+      const select = document.getElementById('playlistSelect')
+      if (!playlists || playlists.length === 0) {
+        select.innerHTML = '<option>No playlists — create one first!</option>'
+      } else {
+        select.innerHTML = playlists.map(p => `<option value="${p.id}">${p.name}</option>`).join('')
+      }
+    }
+
+    document.getElementById('confirmAdd').addEventListener('click', async () => {
+      const playlistId = document.getElementById('playlistSelect').value
+      if (!playlistId || !selectedSongId) return
+
+      const { error } = await supabase.from('playlist_songs').insert({
+        playlist_id: playlistId,
+        song_id: selectedSongId
+      })
+
+      document.getElementById('modal').style.display = 'none'
+      alert(error ? 'Error: ' + error.message : '✅ Song added to playlist!')
+    })
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('modal').style.display = 'none'
+    })
+
+    document.getElementById('searchBtn').addEventListener('click', searchSongs)
+    document.getElementById('searchInput').addEventListener('keyup', e => {
+      if (e.key === 'Enter') searchSongs()
+    })
+
+    // Load all songs on start
+    searchSongs()
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */

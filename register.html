@@ -5,7 +5,7 @@
   <title>Register — Music System</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="auth-body">
   <div class="auth-box">
     <h1>Create Account</h1>
 
@@ -27,7 +27,7 @@
     <p id="msg"></p>
   </div>
 
-<script type="module">
+  <script type="module">
     import { supabase } from './js/supabase.js'
 
     async function register() {
@@ -35,6 +35,13 @@
       const email = document.getElementById('email').value
       const password = document.getElementById('password').value
       const role = document.querySelector('input[name="role"]:checked').value
+
+      if (!full_name || !email || !password) {
+        document.getElementById('msg').textContent = 'Please fill in all fields'
+        return
+      }
+
+      document.getElementById('msg').textContent = 'Creating account...'
 
       const { error } = await supabase.auth.signUp({
         email, password,
@@ -44,11 +51,14 @@
       if (error) {
         document.getElementById('msg').textContent = error.message
       } else {
-        window.location.href = role === 'artist' ? 'artist/dashboard.html' : 'listener/dashboard.html'
+        document.getElementById('msg').style.color = 'green'
+        document.getElementById('msg').textContent = 'Account created! Redirecting...'
+        setTimeout(() => {
+          window.location.href = role === 'artist' ? 'artist/dashboard.html' : 'listener/dashboard.html'
+        }, 1000)
       }
     }
 
-    // ← this line connects the button to the function
     document.getElementById('registerBtn').addEventListener('click', register)
   </script>
 </body>

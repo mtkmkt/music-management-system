@@ -2,14 +2,98 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>Listener Dashboard</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="search.html">Search Songs</a>
+      <a href="playlist.html">My Playlists</a>
+      <a href="likes.html">Liked Songs</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>Welcome, <span id="listenerName">Listener</span>!</h1>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3 id="playlistCount">0</h3>
+        <p>My Playlists</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="likeCount">0</h3>
+        <p>Liked Songs</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="songCount">0</h3>
+        <p>Total Songs Available</p>
+      </div>
+    </div>
+
+    <h2>Recently Added Songs</h2>
+    <div id="recentSongs"><p>Loading...</p></div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    document.getElementById('listenerName').textContent = user.user_metadata.full_name || 'Listener'
+
+    // Playlist count
+    const { data: playlists } = await supabase
+      .from('playlists')
+      .select('*')
+      .eq('listener_id', user.id)
+    document.getElementById('playlistCount').textContent = playlists?.length || 0
+
+    // Likes count
+    const { data: likes } = await supabase
+      .from('likes')
+      .select('*')
+      .eq('user_id', user.id)
+    document.getElementById('likeCount').textContent = likes?.length || 0
+
+    // Total songs
+    const { data: allSongs } = await supabase
+      .from('songs')
+      .select('*')
+    document.getElementById('songCount').textContent = allSongs?.length || 0
+
+    // Recent songs
+    const { data: recentSongs } = await supabase
+      .from('songs')
+      .select('*, users(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(5)
+
+    if (recentSongs && recentSongs.length > 0) {
+      document.getElementById('recentSongs').innerHTML = recentSongs.map(song => `
+        <div class="song-card">
+          <div>
+            <strong>${song.title}</strong>
+            <br>
+            <span>${song.users?.full_name || 'Unknown Artist'} • ${song.genre || 'No genre'}</span>
+          </div>
+          <a href="search.html" style="color:#6c47ff;font-size:0.9rem">Play</a>
+        </div>
+      `).join('')
+    } else {
+      document.getElementById('recentSongs').innerHTML = '<p>No songs available yet.</p>'
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */

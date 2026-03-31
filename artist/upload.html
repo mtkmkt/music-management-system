@@ -2,14 +2,175 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>Upload Song</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="upload.html" class="active">Upload Song</a>
+      <a href="albums.html">My Albums</a>
+      <a href="profile.html">Edit Profile</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>Upload a Song</h1>
+
+    <div class="form-card">
+      <label>Song Title *</label>
+      <input type="text" id="title" placeholder="e.g. Pavazha Malli" />
+
+      <label>Genre</label>
+      <select id="genre">
+        <option value="">Select genre</option>
+        <option>Pop</option>
+        <option>Rock</option>
+        <option>Hip Hop</option>
+        <option>Jazz</option>
+        <option>Classical</option>
+        <option>Electronic</option>
+        <option>R&B</option>
+        <option>Other</option>
+      </select>
+
+      <label>Album (optional)</label>
+      <select id="album">
+        <option value="">No album</option>
+      </select>
+
+      <label>Upload MP3 File *</label>
+      <input type="file" id="songFile" accept=".mp3,audio/*" />
+      <p class="hint">Supported: MP3, WAV, M4A</p>
+
+      <button id="uploadBtn">Upload Song</button>
+      <div id="progressBar" style="display:none">
+        <div id="progressFill"></div>
+      </div>
+      <p id="msg"></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    // Load albums
+    const { data: albums } = await supabase
+      .from('albums')
+      .select('*')
+      .eq('artist_id', user.id)
+
+    if (albums && albums.length > 0) {
+      const select = document.getElementById('album')
+      albums.forEach(album => {
+        const opt = document.createElement('option')
+        opt.value = album.id
+        opt.textContent = album.title
+        select.appendChild(opt)
+      })
+    }
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const title = document.getElementById('title').value
+      const genre = document.getElementById('genre').value
+      const album_id = document.getElementById('album').value
+      const fileInput = document.getElementById('songFile')
+      const file = fileInput.files[0]
+      const msg = document.getElementById('msg')
+
+      if (!title) {
+        msg.textContent = 'Please enter a song title'
+        msg.style.color = 'red'
+        return
+      }
+
+      if (!file) {
+        msg.textContent = 'Please select an MP3 file'
+        msg.style.color = 'red'
+        return
+      }
+
+      msg.textContent = 'Uploading file...'
+      msg.style.color = 'gray'
+      document.getElementById('progressBar').style.display = 'block'
+      document.getElementById('progressFill').style.width = '30%'
+
+      // Upload file to Supabase Storage
+      const fileName = `${user.id}/${Date.now()}_${file.name}`
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('songs')
+        .upload(fileName, file)
+
+      if (uploadError) {
+        msg.textContent = uploadError.message
+        msg.style.color = 'red'
+        document.getElementById('progressBar').style.display = 'none'
+        return
+      }
+
+      document.getElementById('progressFill').style.width = '70%'
+
+      // Get public URL
+      const { data: urlData } = supabase
+        .storage
+        .from('songs')
+        .getPublicUrl(fileName)
+
+      const file_url = urlData.publicUrl
+
+      // Get audio duration
+      let duration_sec = null
+      try {
+        const audio = new Audio(file_url)
+        await new Promise(resolve => {
+          audio.onloadedmetadata = () => {
+            duration_sec = Math.round(audio.duration)
+            resolve()
+          }
+          setTimeout(resolve, 3000)
+        })
+      } catch(e) {}
+
+      document.getElementById('progressFill').style.width = '90%'
+
+      // Save to database
+      const { error: dbError } = await supabase.from('songs').insert({
+        artist_id: user.id,
+        album_id: album_id || null,
+        title,
+        genre,
+        duration_sec,
+        file_url
+      })
+
+      document.getElementById('progressFill').style.width = '100%'
+
+      if (dbError) {
+        msg.textContent = dbError.message
+        msg.style.color = 'red'
+      } else {
+        msg.textContent = '✅ Song uploaded successfully!'
+        msg.style.color = 'green'
+        document.getElementById('title').value = ''
+        fileInput.value = ''
+        setTimeout(() => {
+          document.getElementById('progressBar').style.display = 'none'
+        }, 1000)
+      }
+    })
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */

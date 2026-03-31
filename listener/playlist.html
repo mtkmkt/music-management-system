@@ -2,14 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>My Playlists</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="search.html">Search Songs</a>
+      <a href="playlist.html" class="active">My Playlists</a>
+      <a href="likes.html">Liked Songs</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>My Playlists</h1>
+
+    <div class="form-card">
+      <h2>Create New Playlist</h2>
+      <label>Playlist Name *</label>
+      <input type="text" id="playlistName" placeholder="e.g. Morning Vibes" />
+      <label style="display:flex;align-items:center;gap:0.5rem;flex-direction:row">
+        <input type="checkbox" id="isPublic" style="width:auto" />
+        Make this playlist public
+      </label>
+      <button id="createBtn">Create Playlist</button>
+      <p id="msg"></p>
+    </div>
+
+    <h2>Your Playlists</h2>
+    <div id="playlistList"><p>Loading...</p></div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    async function loadPlaylists() {
+      const { data: playlists } = await supabase
+        .from('playlists')
+        .select('*, playlist_songs(count)')
+        .eq('listener_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (!playlists || playlists.length === 0) {
+        document.getElementById('playlistList').innerHTML = '<p>No playlists yet. Create one above!</p>'
+        return
+      }
+
+      document.getElementById('playlistList').innerHTML = playlists.map(p => `
+        <div class="song-card">
+          <div>
+            <strong>${p.name}</strong>
+            <br>
+            <span>${p.playlist_songs[0]?.count || 0} songs • ${p.is_public ? '🌍 Public' : '🔒 Private'}</span>
+          </div>
+          <button class="delete-btn" onclick="deletePlaylist('${p.id}')">Delete</button>
+        </div>
+      `).join('')
+    }
+
+    loadPlaylists()
+
+    document.getElementById('createBtn').addEventListener('click', async () => {
+      const name = document.getElementById('playlistName').value
+      const is_public = document.getElementById('isPublic').checked
+      const msg = document.getElementById('msg')
+
+      if (!name) {
+        msg.textContent = 'Playlist name is required'
+        msg.style.color = 'red'
+        return
+      }
+
+      const { error } = await supabase.from('playlists').insert({
+        listener_id: user.id,
+        name,
+        is_public
+      })
+
+      if (error) {
+        msg.textContent = error.message
+        msg.style.color = 'red'
+      } else {
+        msg.textContent = '✅ Playlist created!'
+        msg.style.color = 'green'
+        document.getElementById('playlistName').value = ''
+        loadPlaylists()
+      }
+    })
+
+    window.deletePlaylist = async function(id) {
+      if (!confirm('Delete this playlist?')) return
+      await supabase.from('playlists').delete().eq('id', id)
+      loadPlaylists()
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */

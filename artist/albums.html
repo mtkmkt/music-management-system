@@ -2,14 +2,113 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>My Albums</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="upload.html">Upload Song</a>
+      <a href="albums.html" class="active">My Albums</a>
+      <a href="profile.html">Edit Profile</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>My Albums</h1>
+
+    <div class="form-card">
+      <h2>Create New Album</h2>
+      <label>Album Title *</label>
+      <input type="text" id="albumTitle" placeholder="e.g. My First Album" />
+      <label>Cover Image URL (optional)</label>
+      <input type="text" id="coverUrl" placeholder="https://example.com/cover.jpg" />
+      <button id="createBtn">Create Album</button>
+      <p id="msg"></p>
+    </div>
+
+    <h2>Your Albums</h2>
+    <div id="albumList"><p>No albums yet.</p></div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    async function loadAlbums() {
+      const { data: albums } = await supabase
+        .from('albums')
+        .select('*, songs(count)')
+        .eq('artist_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (!albums || albums.length === 0) {
+        document.getElementById('albumList').innerHTML = '<p>No albums yet. Create one above!</p>'
+        return
+      }
+
+      document.getElementById('albumList').innerHTML = albums.map(album => `
+        <div class="song-card">
+          <div>
+            <strong>${album.title}</strong>
+            <br>
+            <span>${album.songs[0]?.count || 0} songs</span>
+          </div>
+          <button class="delete-btn" onclick="deleteAlbum('${album.id}')">Delete</button>
+        </div>
+      `).join('')
+    }
+
+    loadAlbums()
+
+    document.getElementById('createBtn').addEventListener('click', async () => {
+      const title = document.getElementById('albumTitle').value
+      const cover_url = document.getElementById('coverUrl').value
+      const msg = document.getElementById('msg')
+
+      if (!title) {
+        msg.textContent = 'Album title is required'
+        msg.style.color = 'red'
+        return
+      }
+
+      msg.textContent = 'Creating...'
+      msg.style.color = 'gray'
+
+      const { error } = await supabase.from('albums').insert({
+        artist_id: user.id,
+        title,
+        cover_url: cover_url || null
+      })
+
+      if (error) {
+        msg.textContent = error.message
+        msg.style.color = 'red'
+      } else {
+        msg.textContent = '✅ Album created!'
+        msg.style.color = 'green'
+        document.getElementById('albumTitle').value = ''
+        document.getElementById('coverUrl').value = ''
+        loadAlbums()
+      }
+    })
+
+    window.deleteAlbum = async function(id) {
+      if (!confirm('Delete this album?')) return
+      await supabase.from('albums').delete().eq('id', id)
+      loadAlbums()
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */

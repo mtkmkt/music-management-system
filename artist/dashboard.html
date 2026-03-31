@@ -2,14 +2,93 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>Artist Dashboard</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="upload.html">Upload Song</a>
+      <a href="albums.html">My Albums</a>
+      <a href="profile.html">Edit Profile</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>Welcome, <span id="artistName">Artist</span>!</h1>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3 id="songCount">0</h3>
+        <p>Songs Uploaded</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="albumCount">0</h3>
+        <p>Albums Created</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="likeCount">0</h3>
+        <p>Total Likes</p>
+      </div>
+    </div>
+
+    <h2>Your Songs</h2>
+    <div id="songList"><p>No songs yet. <a href="upload.html">Upload one!</a></p></div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    // Check if logged in
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    // Show name
+    document.getElementById('artistName').textContent = user.user_metadata.full_name || 'Artist'
+
+    // Load song count
+    const { data: songs } = await supabase
+      .from('songs')
+      .select('*')
+      .eq('artist_id', user.id)
+
+    document.getElementById('songCount').textContent = songs?.length || 0
+
+    // Load album count
+    const { data: albums } = await supabase
+      .from('albums')
+      .select('*')
+      .eq('artist_id', user.id)
+
+    document.getElementById('albumCount').textContent = albums?.length || 0
+
+    // Load likes count
+    const { data: likes } = await supabase
+      .from('likes')
+      .select('song_id, songs!inner(artist_id)')
+      .eq('songs.artist_id', user.id)
+
+    document.getElementById('likeCount').textContent = likes?.length || 0
+
+    // Show songs list
+    if (songs && songs.length > 0) {
+      document.getElementById('songList').innerHTML = songs.map(song => `
+        <div class="song-card">
+          <strong>${song.title}</strong>
+          <span>${song.genre || 'No genre'} • ${song.duration_sec ? Math.floor(song.duration_sec/60) + ':' + String(song.duration_sec%60).padStart(2,'0') : 'Unknown duration'}</span>
+        </div>
+      `).join('')
+    }
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */

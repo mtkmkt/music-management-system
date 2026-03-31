@@ -2,14 +2,95 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Music Playlist System</title>
+  <title>Edit Profile</title>
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <h1>Page coming soon</h1>
+
+  <div class="sidebar">
+    <h2>🎵 MusicApp</h2>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="upload.html">Upload Song</a>
+      <a href="albums.html">My Albums</a>
+      <a href="profile.html" class="active">Edit Profile</a>
+    </nav>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="main">
+    <h1>Edit Profile</h1>
+
+    <div class="form-card">
+      <div id="avatarPreview" style="text-align:center;margin-bottom:1rem">
+        <div style="width:80px;height:80px;border-radius:50%;background:#6c47ff;display:flex;align-items:center;justify-content:center;color:white;font-size:2rem;margin:0 auto" id="avatarCircle">?</div>
+      </div>
+
+      <label>Full Name</label>
+      <input type="text" id="fullName" placeholder="Your name" />
+
+      <label>Email (cannot be changed)</label>
+      <input type="email" id="email" disabled style="background:#f5f5f5;color:#999" />
+
+      <label>Role</label>
+      <input type="text" id="role" disabled style="background:#f5f5f5;color:#999" />
+
+      <label>Avatar URL (optional)</label>
+      <input type="text" id="avatarUrl" placeholder="https://example.com/avatar.jpg" />
+
+      <button id="saveBtn">Save Changes</button>
+      <p id="msg"></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '../js/supabase.js'
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '../index.html'
+
+    // Load profile
+    const { data: profile } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (profile) {
+      document.getElementById('fullName').value = profile.full_name || ''
+      document.getElementById('email').value = profile.email || ''
+      document.getElementById('role').value = profile.role || ''
+      document.getElementById('avatarUrl').value = profile.avatar_url || ''
+      document.getElementById('avatarCircle').textContent = (profile.full_name || 'A')[0].toUpperCase()
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const full_name = document.getElementById('fullName').value
+      const avatar_url = document.getElementById('avatarUrl').value
+      const msg = document.getElementById('msg')
+
+      msg.textContent = 'Saving...'
+      msg.style.color = 'gray'
+
+      const { error } = await supabase
+        .from('users')
+        .update({ full_name, avatar_url: avatar_url || null })
+        .eq('id', user.id)
+
+      if (error) {
+        msg.textContent = error.message
+        msg.style.color = 'red'
+      } else {
+        msg.textContent = '✅ Profile updated!'
+        msg.style.color = 'green'
+        document.getElementById('avatarCircle').textContent = full_name[0].toUpperCase()
+      }
+    })
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      window.location.href = '../index.html'
+    })
+  </script>
 </body>
 </html>
-```
-
-For `style.css` and the two `.js` files, just add a comment as placeholder:
-```
-/* coming soon */
